@@ -1,0 +1,199 @@
+#!/bin/bash
+# ============================================================
+#  BearsNPRMP — Virtual Host Manager (Nginx *.test)
+# ============================================================
+
+# shellcheck disable=SC1091
+source "$(dirname "${BASH_SOURCE[0]}")/../core/helpers.sh"
+# shellcheck disable=SC1091
+source "$(dirname "${BASH_SOURCE[0]}")/../core/detect.sh"
+
+load_env
+
+NGINX_DIR="${NGINX_DIR:-/etc/nginx}"
+SITES_AVAILABLE="$NGINX_DIR/sites-available"
+SITES_ENABLED="$NGINX_DIR/sites-enabled"
+TEMPLATES_DIR="$(dirname "${BASH_SOURCE[0]}")/../templates/nginx"
+
+hosts_has() {
+    local d="$1"
+    awk -v d="$d" '{for(i=2;i<=NF;i++) if($i==d) f=1} END{exit !f}' /etc/hosts 2>/dev/null
+}
+
+hosts_add() {
+    local d="$1"
+    if is_wsl; then return 0; fi
+    if hosts_has "$d"; then return 0; fi
+    run_root sh -c "echo '127.0.0.1 $d' >> /etc/hosts"
+    ok "Añadido a /etc/hosts: 127.0.0.1 $d"
+}
+
+hosts_del() {
+    local d="$1"
+    if is_wsl; then return 0; fi
+    hosts_has "$d" || return 0
+    local tmp
+    tmp=$(mktemp)
+    run_root awk -v d="$d" '{f=0; for(i=2;i<=NF;i++) if($i==d) f=1; if(!f) print}' /etc/hosts > "$tmp"
+    run_root install -m 644 "$tmp" /etc/hosts
+    rm -f "$tmp"
+    ok "Eliminado de /etc/hosts: $d"
+}
+
+nginx_reload() {
+    if ! run_root nginx -t 2>/dev/null; then
+        fail "La configuración de Nginx contiene errores de sintaxis."
+        return 1
+    fi
+    if is_systemd; then
+        run_root systemctl reload nginx 2>/dev/null || run_root systemctl restart nginx 2>/dev/null
+    else
+        run_root nginx -s reload 2>/dev/null
+    fi
+    ok "Nginx recargado correctamente."
+}
+
+vhost_create() {
+    local domain="" folder="" backend="fpm" php_ver="" is_laravel=0
+
+    while [ $# -gt 0 ]; do
+        case "$1" in
+            --domain) domain="$2"; shift 2 ;;
+            --folder) folder="$2"; shift 2 ;;
+            --backend) backend="$2"; shift 2 ;;
+            --php) php_ver="$2"; shift 2 ;;
+            --laravel) is_laravel=1; shift ;;
+            *) shift ;;
+        esac
+    done
+
+    # Interactive prompts if arguments are missing
+    if [ -z "$domain" ]; then
+        echo -n "Dominio del vhost (ej: mi-proyecto.test): "
+        read -r domain
+    fi
+    [ -z "$domain" ] && { fail "El dominio no puede estar vacío."; return 1; }
+
+    if [ -z "$folder" ]; then
+        echo -n "Carpeta dentro de /var/www (ej: mi-proyecto): "
+        read -r folder
+    fi
+    [ -z "$folder" ] && folder="$domain"
+
+    local root_path="$WWW_DIR/$folder"
+    if [ "$is_laravel" -eq 1 ]; then
+        root_path="$WWW_DIR/$folder/public"
+    fi
+
+    # Ensure directory exists
+    run_root mkdir -p "$root_path"
+
+    local php_port="9000"
+    if [ -n "$php_ver" ]; then
+        case "$php_ver" in
+            74|7.4) php_port="9002" ;;
+            84|8.4) php_port="9001" ;;
+            85|8.5) php_port="9000" ;;
+        esac
+    else
+        php_port=$(port_of "$PHP_CURRENT")
+    fi
+
+    local target_conf="$SITES_AVAILABLE/$domain"
+    local tpl="$TEMPLATES_DIR/vhost_fpm.conf"
+    [ "$backend" = "roadrunner" ] && tpl="$TEMPLATES_DIR/vhost_roadrunner.conf"
+
+    if [ ! -f "$tpl" ]; then
+        fail "Plantilla no encontrada: $tpl"
+        return 1
+    fi
+
+    # Render config
+    local rendered
+    rendered=$(sed -e "s|{{DOMAIN}}|$domain|g" -e "s|{{ROOT_PATH}}|$root_path|g" -e "s|{{PHP_PORT}}|$php_port|g" "$tpl")
+    
+    run_root sh -c "cat > '$target_conf'" <<EOF
+$rendered
+EOF
+    run_root ln -sf "$target_conf" "$SITES_ENABLED/$domain"
+
+    nginx_reload || return 1
+    hosts_add "$domain"
+
+    hr
+    ok "Virtual Host creado exitosamente: http://$domain"
+    info "Ruta raíz : $root_path"
+    info "Backend   : $backend (puerto $php_port)"
+    if is_wsl; then
+        info "En Windows, añade a C:\\Windows\\System32\\drivers\\etc\\hosts:"
+        printf "  %s  %s\n" "127.0.0.1" "$domain"
+    fi
+    hr
+}
+
+vhost_list() {
+    local json_output=0
+    [ "${1:-}" = "--json" ] && json_output=1
+
+    shopt -s nullglob
+    local confs=("$SITES_AVAILABLE"/*)
+    shopt -u nullglob
+
+    if [ "$json_output" -eq 1 ]; then
+        local out="["
+        local first=1
+        for conf in "${confs[@]}"; do
+            [ -f "$conf" ] || continue
+            local dom enabled="false" root=""
+            dom=$(basename "$conf")
+            [ -L "$SITES_ENABLED/$dom" ] && enabled="true"
+            root=$(grep -m1 '^\s*root ' "$conf" 2>/dev/null | awk '{print $2}' | tr -d ';')
+            [ "$first" -eq 0 ] && out="$out,"
+            out="$out{\"domain\":\"$dom\",\"enabled\":$enabled,\"root\":\"$root\"}"
+            first=0
+        done
+        out="$out]"
+        echo "$out"
+        return 0
+    fi
+
+    hr
+    printf "   📋  VIRTUAL HOSTS REGISTRADOS  (%s)\n" "$NGINX_DIR"
+    hr
+    if [ ${#confs[@]} -eq 0 ]; then
+        echo "   No hay virtual hosts creados aún."
+        hr
+        return 0
+    fi
+
+    for conf in "${confs[@]}"; do
+        [ -f "$conf" ] || continue
+        local dom st="❌ Inactivo" root=""
+        dom=$(basename "$conf")
+        [ -L "$SITES_ENABLED/$dom" ] && st="✅ Activo"
+        root=$(grep -m1 '^\s*root ' "$conf" 2>/dev/null | awk '{print $2}' | tr -d ';')
+        printf "  • http://%-25s [%s]\n    Raíz: %s\n" "$dom" "$st" "$root"
+    done
+    hr
+}
+
+vhost_delete() {
+    local domain="$1"
+    [ -z "$domain" ] && { fail "Especifica el dominio a eliminar."; return 1; }
+
+    run_root rm -f "$SITES_ENABLED/$domain" "$SITES_AVAILABLE/$domain"
+    hosts_del "$domain"
+    nginx_reload
+    ok "Virtual Host '$domain' eliminado."
+}
+
+# CLI dispatcher if called directly
+if [[ "${BASH_SOURCE[0]}" == "${0}" ]]; then
+    case "${1:-}" in
+        create) shift; vhost_create "$@" ;;
+        list) shift; vhost_list "$@" ;;
+        delete) shift; vhost_delete "$@" ;;
+        reload) nginx_reload ;;
+        *) echo "Uso: vhost.sh create|list|delete|reload"; exit 1 ;;
+    esac
+fi

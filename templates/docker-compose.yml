@@ -1,0 +1,157 @@
+services:
+  # ============================================================
+  #  PHP MULTI-VERSION (FPM)
+  # ============================================================
+  php85:
+    image: dunglas/frankenphp:latest-php8.4 # or php:8.4-fpm / php:8.5
+    container_name: b-php85
+    restart: unless-stopped
+    ports:
+      - "127.0.0.1:9000:9000"
+    volumes:
+      - /var/www:/var/www:rw
+    environment:
+      - PHP_MEMORY_LIMIT=512M
+      - UPLOAD_MAX_FILESIZE=64M
+    networks:
+      - bears-network
+
+  php84:
+    image: php:8.4-fpm-alpine
+    container_name: b-php84
+    restart: unless-stopped
+    ports:
+      - "127.0.0.1:9001:9000"
+    volumes:
+      - /var/www:/var/www:rw
+    networks:
+      - bears-network
+
+  php74:
+    image: php:7.4-fpm-bullseye
+    container_name: b-php74
+    restart: unless-stopped
+    ports:
+      - "127.0.0.1:9002:9000"
+    volumes:
+      - /var/www:/var/www:rw
+    networks:
+      - bears-network
+
+  # ============================================================
+  #  MARIADB MULTI-VERSION
+  # ============================================================
+  mariadb11:
+    image: mariadb:11.4
+    container_name: b-mariadb11
+    restart: unless-stopped
+    ports:
+      - "127.0.0.1:3306:3306"
+    environment:
+      - MARIADB_ROOT_PASSWORD=root
+      - MARIADB_DATABASE=dev
+      - MARIADB_USER=dev
+      - MARIADB_PASSWORD=dev
+    volumes:
+      - mariadb11_data:/var/lib/mysql
+    networks:
+      - bears-network
+
+  mariadb10:
+    image: mariadb:10.11
+    container_name: b-mariadb10
+    restart: unless-stopped
+    ports:
+      - "127.0.0.1:3307:3306"
+    environment:
+      - MARIADB_ROOT_PASSWORD=root
+      - MARIADB_DATABASE=dev
+      - MARIADB_USER=dev
+      - MARIADB_PASSWORD=dev
+    volumes:
+      - mariadb10_data:/var/lib/mysql
+    networks:
+      - bears-network
+
+  # ============================================================
+  #  POSTGRESQL MULTI-VERSION
+  # ============================================================
+  postgres17:
+    image: postgres:17-alpine
+    container_name: b-postgres17
+    restart: unless-stopped
+    ports:
+      - "127.0.0.1:5432:5432"
+    environment:
+      - POSTGRES_PASSWORD=postgres
+      - POSTGRES_USER=postgres
+      - POSTGRES_DB=dev
+    volumes:
+      - postgres17_data:/var/lib/postgresql/data
+    networks:
+      - bears-network
+
+  postgres15:
+    image: postgres:15-alpine
+    container_name: b-postgres15
+    restart: unless-stopped
+    ports:
+      - "127.0.0.1:5433:5432"
+    environment:
+      - POSTGRES_PASSWORD=postgres
+      - POSTGRES_USER=postgres
+      - POSTGRES_DB=dev
+    volumes:
+      - postgres15_data:/var/lib/postgresql/data
+    networks:
+      - bears-network
+
+  # ============================================================
+  #  REDIS & MAILPIT
+  # ============================================================
+  redis:
+    image: redis:7-alpine
+    container_name: b-redis
+    restart: unless-stopped
+    ports:
+      - "127.0.0.1:6379:6379"
+    volumes:
+      - redis_data:/data
+    networks:
+      - bears-network
+
+  mailpit:
+    image: axllent/mailpit:latest
+    container_name: b-mailpit
+    restart: unless-stopped
+    ports:
+      - "127.0.0.1:8025:8025" # Web UI
+      - "127.0.0.1:1025:1025" # SMTP
+    networks:
+      - bears-network
+
+  # ============================================================
+  #  ROADRUNNER WORKER
+  # ============================================================
+  roadrunner:
+    image: spiralsc/roadrunner:2024.3
+    container_name: b-roadrunner
+    restart: unless-stopped
+    ports:
+      - "127.0.0.1:8080:8080"
+    volumes:
+      - /var/www:/var/www:rw
+    networks:
+      - bears-network
+
+networks:
+  bears-network:
+    name: bears-network
+    driver: bridge
+
+volumes:
+  mariadb11_data:
+  mariadb10_data:
+  postgres17_data:
+  postgres15_data:
+  redis_data:

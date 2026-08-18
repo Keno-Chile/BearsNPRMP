@@ -1,0 +1,121 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" width="100%" height="100%">
+  <defs>
+    <!-- Background Gradient -->
+    <radialGradient id="bgGrad" cx="50%" cy="40%" r="60%">
+      <stop offset="0%" stop-color="#1e293b" />
+      <stop offset="100%" stop-color="#0f172a" />
+    </radialGradient>
+    
+    <!-- Bear Gradients -->
+    <linearGradient id="bearFur" x1="0%" y1="0%" x2="0%" y2="100%">
+      <stop offset="0%" stop-color="#9a5b32" />
+      <stop offset="100%" stop-color="#6e3d1c" />
+    </linearGradient>
+    <linearGradient id="bearEarInner" x1="0%" y1="0%" x2="0%" y2="100%">
+      <stop offset="0%" stop-color="#d49265" />
+      <stop offset="100%" stop-color="#a8683e" />
+    </linearGradient>
+    <linearGradient id="bearMuzzle" x1="0%" y1="0%" x2="0%" y2="100%">
+      <stop offset="0%" stop-color="#f5ce9f" />
+      <stop offset="100%" stop-color="#ddaa75" />
+    </linearGradient>
+
+    <!-- Penguin Cap Gradients -->
+    <linearGradient id="capBlack" x1="0%" y1="0%" x2="0%" y2="100%">
+      <stop offset="0%" stop-color="#334155" />
+      <stop offset="100%" stop-color="#0f172a" />
+    </linearGradient>
+    <linearGradient id="capBeak" x1="0%" y1="0%" x2="0%" y2="100%">
+      <stop offset="0%" stop-color="#fbbf24" />
+      <stop offset="100%" stop-color="#f59e0b" />
+    </linearGradient>
+    <linearGradient id="capBrim" x1="0%" y1="0%" x2="100%" y2="0%">
+      <stop offset="0%" stop-color="#0284c7" />
+      <stop offset="50%" stop-color="#38bdf8" />
+      <stop offset="100%" stop-color="#0284c7" />
+    </linearGradient>
+
+    <!-- Drop Shadows -->
+    <filter id="dropShadow" x="-10%" y="-10%" width="130%" height="130%">
+      <feDropShadow dx="0" dy="12" stdDeviation="16" flood-color="#000000" flood-opacity="0.45" />
+    </filter>
+  </defs>
+
+  <!-- Circular Badge Base -->
+  <circle cx="256" cy="256" r="240" fill="url(#bgGrad)" stroke="#38bdf8" stroke-width="6" stroke-opacity="0.6" filter="url(#dropShadow)" />
+  <circle cx="256" cy="256" r="215" fill="none" stroke="#38bdf8" stroke-width="1.5" stroke-dasharray="8 8" stroke-opacity="0.3" />
+
+  <g id="mascot" filter="url(#dropShadow)">
+    <!-- Bear Ears -->
+    <g id="leftEar">
+      <circle cx="140" cy="180" r="48" fill="url(#bearFur)" stroke="#4a270f" stroke-width="4" />
+      <circle cx="140" cy="180" r="30" fill="url(#bearEarInner)" />
+    </g>
+    <g id="rightEar">
+      <circle cx="372" cy="180" r="48" fill="url(#bearFur)" stroke="#4a270f" stroke-width="4" />
+      <circle cx="372" cy="180" r="30" fill="url(#bearEarInner)" />
+    </g>
+
+    <!-- Bear Head Base -->
+    <ellipse cx="256" cy="295" rx="145" ry="135" fill="url(#bearFur)" stroke="#4a270f" stroke-width="5" />
+    <path d="M 115 310 Q 95 330 118 350 Q 102 365 130 380" fill="none" stroke="#6e3d1c" stroke-width="4" stroke-linecap="round" />
+    <path d="M 397 310 Q 417 330 394 350 Q 410 365 382 380" fill="none" stroke="#6e3d1c" stroke-width="4" stroke-linecap="round" />
+
+    <!-- Bear Muzzle -->
+    <ellipse cx="256" cy="335" rx="68" ry="52" fill="url(#bearMuzzle)" stroke="#6e3d1c" stroke-width="3" />
+    <path d="M 234 308 C 244 302, 268 302, 278 308 C 284 314, 272 332, 256 332 C 240 332, 228 314, 234 308 Z" fill="#1e1b18" />
+    <ellipse cx="248" cy="310" rx="6" ry="3" fill="#ffffff" opacity="0.45" />
+
+    <!-- Bear Mouth -->
+    <path d="M 256 332 L 256 348 M 238 348 Q 256 364 274 348" fill="none" stroke="#1e1b18" stroke-width="4" stroke-linecap="round" />
+
+    <!-- Bear Eyes -->
+    <g id="leftEye">
+      <circle cx="195" cy="272" r="14" fill="#1e1b18" />
+      <circle cx="191" cy="268" r="5" fill="#ffffff" />
+      <circle cx="198" cy="275" r="2" fill="#ffffff" />
+    </g>
+    <g id="rightEye">
+      <circle cx="317" cy="272" r="14" fill="#1e1b18" />
+      <circle cx="313" cy="268" r="5" fill="#ffffff" />
+      <circle cx="320" cy="275" r="2" fill="#ffffff" />
+    </g>
+
+    <!-- Blush -->
+    <ellipse cx="160" cy="315" rx="16" ry="9" fill="#f87171" opacity="0.35" />
+    <ellipse cx="352" cy="315" rx="16" ry="9" fill="#f87171" opacity="0.35" />
+
+    <!-- Tux Penguin Beanie -->
+    <path d="M 132 205 C 130 110, 190 70, 256 70 C 322 70, 382 110, 380 205 Z" fill="url(#capBlack)" stroke="#090d16" stroke-width="4" />
+    <path d="M 175 200 C 175 125, 215 105, 256 105 C 297 105, 337 125, 337 200 Z" fill="#f8fafc" />
+
+    <!-- Penguin Eyes -->
+    <circle cx="218" cy="148" r="11" fill="#0f172a" />
+    <circle cx="215" cy="145" r="4" fill="#ffffff" />
+    <circle cx="294" cy="148" r="11" fill="#0f172a" />
+    <circle cx="291" cy="145" r="4" fill="#ffffff" />
+
+    <!-- Penguin Beak -->
+    <polygon points="256,182 238,158 274,158" fill="url(#capBeak)" stroke="#d97706" stroke-width="2" />
+
+    <!-- Beanie Brim -->
+    <rect x="125" y="195" width="262" height="34" rx="14" fill="url(#capBrim)" stroke="#0369a1" stroke-width="3" />
+    <line x1="160" y1="198" x2="160" y2="226" stroke="#0284c7" stroke-width="2" stroke-linecap="round" />
+    <line x1="190" y1="198" x2="190" y2="226" stroke="#0284c7" stroke-width="2" stroke-linecap="round" />
+    <line x1="220" y1="198" x2="220" y2="226" stroke="#0284c7" stroke-width="2" stroke-linecap="round" />
+    <line x1="256" y1="198" x2="256" y2="226" stroke="#0284c7" stroke-width="2" stroke-linecap="round" />
+    <line x1="292" y1="198" x2="292" y2="226" stroke="#0284c7" stroke-width="2" stroke-linecap="round" />
+    <line x1="322" y1="198" x2="322" y2="226" stroke="#0284c7" stroke-width="2" stroke-linecap="round" />
+    <line x1="352" y1="198" x2="352" y2="226" stroke="#0284c7" stroke-width="2" stroke-linecap="round" />
+
+    <!-- Pom-Pom -->
+    <circle cx="256" cy="62" r="24" fill="#38bdf8" stroke="#0284c7" stroke-width="3" />
+    <circle cx="250" cy="56" r="6" fill="#ffffff" opacity="0.6" />
+  </g>
+
+  <!-- Typography -->
+  <g id="textAndPills" font-family="system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif">
+    <text x="256" y="456" text-anchor="middle" font-size="28" font-weight="900" fill="#f8fafc" letter-spacing="4">BEARS-NPRMP</text>
+    <text x="256" y="480" text-anchor="middle" font-size="13" font-weight="600" fill="#38bdf8" letter-spacing="2">MODULAR &amp; OS-AWARE STACK</text>
+  </g>
+</svg>
