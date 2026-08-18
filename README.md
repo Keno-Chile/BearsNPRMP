@@ -7,6 +7,7 @@
   <p>
     <img src="https://img.shields.io/badge/WSL2-Ready-4a4a55?style=for-the-badge&logo=windowsterminal&logoColor=white" alt="WSL2">
     <img src="https://img.shields.io/badge/Linux-Universal-FCC624?style=for-the-badge&logo=linux&logoColor=black" alt="Linux">
+    <img src="https://img.shields.io/badge/SSL-TLS_1.2%2F1.3-009639?style=for-the-badge&logo=letsencrypt&logoColor=white" alt="SSL">
     <img src="https://img.shields.io/badge/Nginx-009639?style=for-the-badge&logo=nginx&logoColor=white" alt="Nginx">
     <img src="https://img.shields.io/badge/PHP-7.4%20%7C%208.4%20%7C%208.5-777BB4?style=for-the-badge&logo=php&logoColor=white" alt="PHP">
     <img src="https://img.shields.io/badge/MariaDB-10.11%20%7C%2011.4-003545?style=for-the-badge&logo=mariadb&logoColor=white" alt="MariaDB">
@@ -30,7 +31,12 @@
 
 * 🐧 **S.O. &amp; Environment Aware**:
   * **Detección de Distro**: Soporte nativo para `apt` (Debian/Ubuntu/Mint), `dnf`/`yum` (Fedora/RHEL/Rocky), `pacman` (Arch/Manjaro), `zypper` (openSUSE) y `apk` (Alpine).
-  * **Detección de Entorno**: Configuración inteligente de `/etc/hosts` en Linux nativo y soporte para localhost forwarding en WSL2.
+  * **Detección de Entorno**: WSL2, WSL1, Bare-Metal, VM y Container. Configuración inteligente de `/etc/hosts` con sincronización automática WSL↔Windows.
+* 🔒 **SSL/TLS Local**:
+  * **Certificados autofirmados**: CA local + certificados por dominio con OpenSSL.
+  * **mkcert**: Soporte para certificados confiables por el navegador (instalación automática).
+  * **Wildcard**: Generación de certificados wildcard `*.bearsnprmp.test`.
+  * **Seguridad**: TLS 1.2/1.3, HSTS, security headers, HTTP→HTTPS redirect automático.
 * 📦 **Stack Multi-Versión**:
   * **PHP Multi-Versión**: 7.4 (puerto `9002`), 8.4 (puerto `9001`) y 8.5 (puerto `9000`).
   * **MariaDB Multi-Versión**: 10.11 (puerto `3307`) y 11.4 (puerto `3306`).
@@ -40,10 +46,11 @@
   * **Redis 7**: Cache y colas en memoria.
   * **Mailpit**: Servidor SMTP de desarrollo y bandeja web de correo.
   * **Node.js (fnm)**: Gestor ultra-rápido de versiones de Node.js.
-* 🌐 **Virtual Hosts Automáticos**: Administrador de dominios `*.test` para PHP-FPM o RoadRunner con recarga automática de Nginx.
+* 🌐 **Virtual Hosts Automáticos**: Administrador de dominios `*.test` para PHP-FPM o RoadRunner con SSL automático y recarga de Nginx.
 * 🖥️ **Panel de Control Dual**:
   * **CLI**: `bears` (menú interactivo en terminal).
-  * **Web**: Panel web responsivo en `http://127.0.0.1:8088`.
+  * **Web**: Panel web dinámico con actualización en vivo en `http://127.0.0.1:8088`.
+* 🗑️ **Desinstalación Limpia**: `uninstall.sh` revierte todos los cambios del instalador.
 
 ---
 
@@ -74,6 +81,7 @@ chmod +x install.sh
 ```
 BearsNPRMP/
 ├── install.sh                  # Bootstrap universal
+├── uninstall.sh                # Desinstalación completa del stack
 ├── core/
 │   ├── detect.sh               # Motor de detección (OS, WSL, Init System, Arch)
 │   ├── pkg_manager.sh          # Capa de abstracción de paquetes (PMAL)
@@ -81,15 +89,15 @@ BearsNPRMP/
 ├── modules/
 │   ├── docker.sh               # Instalador y gestor de Docker & Compose
 │   ├── nginx.sh                # Instalador y configurador de Nginx
+│   ├── ssl.sh                  # Gestión SSL (CA, certs, mkcert, wildcard)
 │   ├── node.sh                 # Gestor de Node.js (fnm)
 │   ├── services.sh             # Ciclo de vida y switch de versiones
-│   ├── vhost.sh                # Administrador de virtual hosts (*.test)
+│   ├── vhost.sh                # Administrador de virtual hosts (*.test) con SSL
 │   └── panel.sh                # Panel de control CLI
 ├── templates/
 │   ├── docker-compose.yml      # Stack multi-contenedor
-│   ├── nginx/                  # Plantillas de vhost para FPM y RoadRunner
-│   └── roadrunner/             # Configuración .rr.yaml
-├── webpanel/                   # Panel de administración Web (PHP + API)
+│   └── nginx/                  # Plantillas de vhost SSL para FPM y RoadRunner
+├── webpanel/                   # Panel de administración Web dinámico (PHP + API)
 └── assets/
     └── logo.svg                # Mascota oficial (Oso con gorro de Tux)
 ```
@@ -105,12 +113,16 @@ bears --status       # Muestra el estado en vivo de todos los servicios
 bears --start        # Inicia todo el stack
 bears --stop         # Detiene todos los servicios
 bears --switch php php84  # Cambia la versión activa de PHP
+bears --panel token  # Muestra el token de acceso al panel web
 ```
 
 ### Administrador de Virtual Hosts
 ```bash
-# Crear un Virtual Host estándar (PHP-FPM)
+# Crear un Virtual Host con SSL (por defecto)
 bears-vhost create --domain api.test --folder api
+
+# Crear un Virtual Host sin SSL
+bears-vhost create --domain api.test --folder api --no-ssl
 
 # Crear un Virtual Host para Laravel (apunta a /public)
 bears-vhost create --domain shop.test --folder shop --laravel
@@ -120,12 +132,47 @@ bears-vhost create --domain highperf.test --folder highperf --backend roadrunner
 
 # Listar todos los Virtual Hosts
 bears-vhost list
+
+# Eliminar un Virtual Host
+bears-vhost delete --domain api.test
+```
+
+### Gestión SSL
+```bash
+# Generar certificado para un dominio
+bears-ssl gen mi-dominio.test
+
+# Generar wildcard (*.bearsnprmp.test)
+bears-ssl wildcard
+
+# Listar certificados
+bears-ssl list
+
+# Instalar mkcert (recomendado para desarrollo local)
+bears-ssl install-mkcert
+
+# Eliminar todos los certificados
+bears-ssl purge
 ```
 
 ### Panel de Control Web
 Abre en tu navegador:
 ```
 http://127.0.0.1:8088
+```
+
+El panel se actualiza automáticamente cada 15 segundos mostrando el estado de todos los servicios.
+
+### Desinstalación
+```bash
+# Desinstalar BearsNPRMP (con confirmación interactiva)
+./uninstall.sh
+
+# Desinstalar sin confirmar
+./uninstall.sh --yes
+
+# Ver qué se eliminaría (sin hacer cambios)
+./uninstall.sh --dry-run
 ```
 
 ---
