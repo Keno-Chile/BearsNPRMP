@@ -80,6 +80,33 @@ cmd_panel_server() {
     esac
 }
 
+ssl_menu() {
+    echo
+    hr
+    printf "   🔒  %sGESTIÓN SSL%s\n" "$BOLD" "$RESET"
+    hr
+    printf "  [1] Generar certificado para un dominio\n"
+    printf "  [2] Generar wildcard (*.test)\n"
+    printf "  [3] Listar certificados\n"
+    printf "  [4] Eliminar certificado\n"
+    printf "  [5] Instalar mkcert (recomendado)\n"
+    printf "  [6] Eliminar todos los certificados\n"
+    printf "  [V] Volver al menú principal\n"
+    hr
+    echo -n "Selecciona una opción: "
+    read -r ssl_op
+    case "$ssl_op" in
+        1) echo -n "Dominio (ej: api.test): "; read -r d; ssl_detect_backend; ssl_generate_cert "$d" ;;
+        2) ssl_detect_backend; ssl_generate_wildcard ;;
+        3) ssl_list ;;
+        4) echo -n "Dominio a eliminar: "; read -r d; ssl_delete_cert "$d" ;;
+        5) ssl_install_mkcert ;;
+        6) ssl_purge ;;
+        [Vv]) return ;;
+    esac
+    echo -n "Presiona enter para continuar..."; read -r
+}
+
 show_menu() {
     clear
     hr
@@ -90,8 +117,9 @@ show_menu() {
     printf "  [3] Versión Postgres  → Actual: %s%s%s (modo %s)\n" "$GREEN" "$PG_CURRENT" "$RESET" "$PG_MODE"
     printf "  [4] Versión Node.js   → Actual: %s%s%s\n" "$GREEN" "$NODE_CURRENT" "$RESET"
     sep
-    printf "  [5] 🌐 Crear Virtual Host       [6] 📋 Listar Virtual Hosts\n"
-    printf "  [7] 🌍 Panel Web (Abrir/Token)  [8] 🩺 Ver Estado Completo\n"
+printf "  [5] 🌐 Crear Virtual Host       [6] 📋 Listar Virtual Hosts\n"
+printf "  [7] 🌍 Panel Web (Abrir/Token)  [8] 🩺 Ver Estado Completo\n"
+printf "  [9] 🔒 Gestión SSL              [0] ❌ Salir\n"
     sep
     printf "  [I] Iniciar Todo   [D] Detener Todo   [R] Reiniciar   [X] Salir\n"
     hr
@@ -132,6 +160,8 @@ menu_loop() {
             [Dd]) stop_stack; sleep 1 ;;
             [Rr]) restart_stack; sleep 1 ;;
             [Xx]) clear; exit 0 ;;
+            [0]) clear; exit 0 ;;
+            9) ssl_menu ;;
         esac
     done
 }

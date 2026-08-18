@@ -7,6 +7,8 @@
 source "$(dirname "${BASH_SOURCE[0]}")/../core/helpers.sh"
 # shellcheck disable=SC1091
 source "$(dirname "${BASH_SOURCE[0]}")/../core/detect.sh"
+# shellcheck disable=SC1091
+source "$(dirname "${BASH_SOURCE[0]}")/ssl.sh"
 
 load_env
 
@@ -105,6 +107,35 @@ hosts_del() {
     fi
 }
 
+# Detect Nginx major.minor version (e.g. "1.22")
+nginx_version() {
+    nginx -v 2>&1 | sed -n 's|.*nginx/\([0-9]*\.[0-9]*\).*|\1|p' || echo "0.0"
+}
+
+# Fix http2 directive for Nginx < 1.25
+fix_ssl_config() {
+    local conf_file="$1"
+    local ver
+    ver=$(nginx_version)
+    local major minor
+    major=$(echo "$ver" | cut -d. -f1)
+    minor=$(echo "$ver" | cut -d. -f2)
+
+    if [ "$major" -lt 1 ] || { [ "$major" -eq 1 ] && [ "$minor" -lt 25 ]; }; then
+        # Nginx < 1.25: 'listen 443 ssl http2' is the only supported syntax
+        local tmp
+        tmp=$(mktemp)
+        awk '
+            /listen 443 ssl;/ { gsub(/listen 443 ssl;/, "listen 443 ssl http2;") }
+            /listen \[::\]:443 ssl;/ { gsub(/listen \[::\]:443 ssl;/, "listen [::]:443 ssl http2;") }
+            /http2 on;/ { next }
+            { print }
+        ' "$conf_file" > "$tmp"
+        run_root install -m 644 "$tmp" "$conf_file"
+        rm -f "$tmp"
+    fi
+}
+
 nginx_reload() {
     if ! run_root nginx -t 2>/dev/null; then
         fail "La configuración de Nginx contiene errores de sintaxis."
@@ -119,7 +150,7 @@ nginx_reload() {
 }
 
 vhost_create() {
-    local domain="" folder="" backend="fpm" php_ver="" is_laravel=0
+    local domain="" folder="" backend="fpm" php_ver="" is_laravel=0 use_ssl=1
 
     while [ $# -gt 0 ]; do
         case "$1" in
@@ -128,6 +159,7 @@ vhost_create() {
             --backend) backend="$2"; shift 2 ;;
             --php) php_ver="$2"; shift 2 ;;
             --laravel) is_laravel=1; shift ;;
+            --no-ssl) use_ssl=0; shift ;;
             *) shift ;;
         esac
     done
@@ -173,22 +205,44 @@ vhost_create() {
         return 1
     fi
 
+    # SSL setup
+    local ssl_cert="" ssl_key=""
+    if [ "$use_ssl" -eq 1 ]; then
+        ssl_detect_backend
+        ssl_generate_cert "$domain"
+        ssl_cert="$CERTS_DIR/$domain/$domain.crt"
+        ssl_key="$CERTS_DIR/$domain/$domain.key"
+    fi
+
     # Render config
     local rendered
-    rendered=$(sed -e "s|{{DOMAIN}}|$domain|g" -e "s|{{ROOT_PATH}}|$root_path|g" -e "s|{{PHP_PORT}}|$php_port|g" "$tpl")
+    rendered=$(sed \
+        -e "s|{{DOMAIN}}|$domain|g" \
+        -e "s|{{ROOT_PATH}}|$root_path|g" \
+        -e "s|{{PHP_PORT}}|$php_port|g" \
+        -e "s|{{SSL_CERT}}|$ssl_cert|g" \
+        -e "s|{{SSL_KEY}}|$ssl_key|g" \
+        "$tpl")
     
-    run_root sh -c "cat > '$target_conf'" <<EOF
-$rendered
-EOF
+    printf '%s\n' "$rendered" > /tmp/.bears_vhost_$$.conf
+    run_root install -m 644 /tmp/.bears_vhost_$$.conf "$target_conf"
+    rm -f /tmp/.bears_vhost_$$.conf
+
+    # Fix http2 directive for Nginx version compatibility
+    [ "$use_ssl" -eq 1 ] && fix_ssl_config "$target_conf"
+
     run_root ln -sf "$target_conf" "$SITES_ENABLED/$domain"
 
     nginx_reload || return 1
     hosts_add "$domain"
 
     hr
-    ok "Virtual Host creado exitosamente: http://$domain"
+    local proto="http"
+    [ "$use_ssl" -eq 1 ] && proto="https"
+    ok "Virtual Host creado exitosamente: ${proto}://$domain"
     info "Ruta raíz : $root_path"
     info "Backend   : $backend (puerto $php_port)"
+    [ "$use_ssl" -eq 1 ] && info "SSL       : Habilitado (autofirmado)"
     if is_wsl; then
         info "En Windows, añade a C:\\Windows\\System32\\drivers\\etc\\hosts:"
         printf "  %s  %s\n" "127.0.0.1" "$domain"

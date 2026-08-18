@@ -59,6 +59,8 @@ source "$SCRIPT_DIR/modules/services.sh"
 # shellcheck disable=SC1091
 source "$SCRIPT_DIR/modules/vhost.sh"
 # shellcheck disable=SC1091
+source "$SCRIPT_DIR/modules/ssl.sh"
+# shellcheck disable=SC1091
 source "$SCRIPT_DIR/modules/panel.sh"
 
 hr
@@ -109,6 +111,11 @@ install_nginx
 # 9. Setup Node.js via fnm
 install_node "22"
 
+# 9.2 Setup SSL (self-signed CA + wildcard cert)
+ssl_detect_backend
+ssl_init
+ssl_generate_wildcard "bearsnprmp.test"
+
 # 9.1 Optimize WSL2 systemd configuration if on WSL
 if is_wsl; then
     if [ ! -f /etc/wsl.conf ] || ! grep -q "\[boot\]" /etc/wsl.conf 2>/dev/null; then
@@ -150,7 +157,8 @@ fi
 if [ -w /usr/local/bin ] || [ "$(id -u)" -eq 0 ] || (command -v sudo >/dev/null 2>&1 && sudo -n true 2>/dev/null); then
     run_root ln -sf "$BEARS_DIR/modules/panel.sh" /usr/local/bin/bears
     run_root ln -sf "$BEARS_DIR/modules/vhost.sh" /usr/local/bin/bears-vhost
-    ok "Comandos globales creados: 'bears' y 'bears-vhost'."
+    run_root ln -sf "$BEARS_DIR/modules/ssl.sh" /usr/local/bin/bears-ssl
+    ok "Comandos globales creados: 'bears', 'bears-vhost' y 'bears-ssl'."
 fi
 
 hr
