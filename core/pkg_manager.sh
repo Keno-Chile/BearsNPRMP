@@ -93,19 +93,19 @@ pkg_is_installed() {
 pkg_get_base_packages() {
     case "$PKG_MGR" in
         apt)
-            echo "curl git unzip jq ca-certificates gnupg lsb-release procps net-tools"
+            echo "curl git unzip jq ca-certificates gnupg lsb-release procps net-tools php-cli"
             ;;
         dnf|yum)
-            echo "curl git unzip jq ca-certificates gnupg2 procps-ng net-tools"
+            echo "curl git unzip jq ca-certificates gnupg2 procps-ng net-tools php-cli"
             ;;
         pacman)
-            echo "curl git unzip jq ca-certificates gnupg procps-ng net-tools which"
+            echo "curl git unzip jq ca-certificates gnupg procps-ng net-tools which php"
             ;;
         zypper)
-            echo "curl git unzip jq ca-certificates gpg2 procps net-tools"
+            echo "curl git unzip jq ca-certificates gpg2 procps net-tools php-cli"
             ;;
         apk)
-            echo "curl git unzip jq ca-certificates gnupg procps net-tools shadow bash"
+            echo "curl git unzip jq ca-certificates gnupg procps net-tools shadow bash php83 php83-cli"
             ;;
         *)
             echo "curl git unzip jq ca-certificates"

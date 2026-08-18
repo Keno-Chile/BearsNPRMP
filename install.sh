@@ -109,6 +109,20 @@ install_nginx
 # 9. Setup Node.js via fnm
 install_node "22"
 
+# 9.1 Optimize WSL2 systemd configuration if on WSL
+if is_wsl; then
+    if [ ! -f /etc/wsl.conf ] || ! grep -q "\[boot\]" /etc/wsl.conf 2>/dev/null; then
+        info "Optimizando configuración de WSL2 (/etc/wsl.conf)..."
+        run_root sh -c "cat >> /etc/wsl.conf" <<'EOF'
+[boot]
+systemd=true
+[network]
+generateHosts=true
+EOF
+        ok "Configuración WSL (/etc/wsl.conf) aplicada."
+    fi
+fi
+
 # 10. Copy and Initialize Stack Workspace
 info "Sincronizando archivos del stack en $BEARS_DIR..."
 mkdir -p "$BEARS_DIR"
@@ -133,7 +147,7 @@ if [ "$NO_START" -eq 0 ]; then
 fi
 
 # 12. Create handy global symlinks if writable
-if [ -w /usr/local/bin ] || [ "$(id -u)" -eq 0 ] || sudo -n true 2>/dev/null; then
+if [ -w /usr/local/bin ] || [ "$(id -u)" -eq 0 ] || (command -v sudo >/dev/null 2>&1 && sudo -n true 2>/dev/null); then
     run_root ln -sf "$BEARS_DIR/modules/panel.sh" /usr/local/bin/bears
     run_root ln -sf "$BEARS_DIR/modules/vhost.sh" /usr/local/bin/bears-vhost
     ok "Comandos globales creados: 'bears' y 'bears-vhost'."

@@ -27,6 +27,11 @@ if ($action === 'ping') {
     exit;
 }
 
+if ($action === 'token') {
+    echo json_encode(['token' => $validToken]);
+    exit;
+}
+
 if ($validToken !== '' && $providedToken !== $validToken) {
     http_response_code(401);
     echo json_encode(['error' => 'Unauthorized: Invalid token']);

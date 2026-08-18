@@ -20,24 +20,89 @@ hosts_has() {
     awk -v d="$d" '{for(i=2;i<=NF;i++) if($i==d) f=1} END{exit !f}' /etc/hosts 2>/dev/null
 }
 
+win_hosts_add() {
+    local d="$1"
+    # ONLY available when running inside WSL
+    if ! is_wsl; then return 0; fi
+
+    local win_hosts="/mnt/c/Windows/System32/drivers/etc/hosts"
+    if [ -f "$win_hosts" ]; then
+        if grep -qE "(^|\s)$d(\s|$)" "$win_hosts" 2>/dev/null; then
+            return 0
+        fi
+        if [ -w "$win_hosts" ]; then
+            printf "\r\n127.0.0.1 %s\r\n" "$d" >> "$win_hosts" 2>/dev/null && ok "Dominio '$d' sincronizado con el archivo hosts de Windows." && return 0
+        fi
+    fi
+
+    # Fallback via powershell.exe when running in WSL
+    if command -v powershell.exe >/dev/null 2>&1; then
+        powershell.exe -NoProfile -NonInteractive -Command "
+            \$hostsPath = \"\$env:SystemRoot\System32\drivers\etc\hosts\";
+            if (Test-Path \$hostsPath) {
+                \$content = Get-Content \$hostsPath -Raw -ErrorAction SilentlyContinue;
+                if (\$content -notmatch '(?m)^\s*127\.0\.0\.1\s+$d\b') {
+                    try {
+                        Add-Content -Path \$hostsPath -Value \"`r`n127.0.0.1 $d\" -ErrorAction Stop;
+                        Write-Output 'OK';
+                    } catch {}
+                }
+            }
+        " 2>/dev/null | grep -q "OK" && ok "Dominio '$d' sincronizado automáticamente con Windows hosts." || true
+    fi
+}
+
+win_hosts_del() {
+    local d="$1"
+    # ONLY available when running inside WSL
+    if ! is_wsl; then return 0; fi
+
+    local win_hosts="/mnt/c/Windows/System32/drivers/etc/hosts"
+    if [ -f "$win_hosts" ] && [ -w "$win_hosts" ]; then
+        sed -i "/127\.0\.0\.1\s\+$d/d" "$win_hosts" 2>/dev/null && ok "Dominio '$d' removido del archivo hosts de Windows." && return 0
+    fi
+
+    if command -v powershell.exe >/dev/null 2>&1; then
+        powershell.exe -NoProfile -NonInteractive -Command "
+            \$hostsPath = \"\$env:SystemRoot\System32\drivers\etc\hosts\";
+            if (Test-Path \$hostsPath) {
+                \$lines = (Get-Content \$hostsPath) | Where-Object { \$_ -notmatch '^\s*127\.0\.0\.1\s+$d\b' };
+                try {
+                    \$lines | Set-Content -Path \$hostsPath -ErrorAction Stop;
+                } catch {}
+            }
+        " 2>/dev/null || true
+    fi
+}
+
 hosts_add() {
     local d="$1"
-    if is_wsl; then return 0; fi
-    if hosts_has "$d"; then return 0; fi
-    run_root sh -c "echo '127.0.0.1 $d' >> /etc/hosts"
-    ok "Añadido a /etc/hosts: 127.0.0.1 $d"
+    if ! hosts_has "$d"; then
+        run_root sh -c "echo '127.0.0.1 $d' >> /etc/hosts"
+        ok "Añadido a /etc/hosts local: 127.0.0.1 $d"
+    fi
+
+    # Synchronize with Windows hosts ONLY when running on WSL
+    if is_wsl; then
+        win_hosts_add "$d"
+    fi
 }
 
 hosts_del() {
     local d="$1"
-    if is_wsl; then return 0; fi
-    hosts_has "$d" || return 0
-    local tmp
-    tmp=$(mktemp)
-    run_root awk -v d="$d" '{f=0; for(i=2;i<=NF;i++) if($i==d) f=1; if(!f) print}' /etc/hosts > "$tmp"
-    run_root install -m 644 "$tmp" /etc/hosts
-    rm -f "$tmp"
-    ok "Eliminado de /etc/hosts: $d"
+    if hosts_has "$d"; then
+        local tmp
+        tmp=$(mktemp)
+        run_root awk -v d="$d" '{f=0; for(i=2;i<=NF;i++) if($i==d) f=1; if(!f) print}' /etc/hosts > "$tmp"
+        run_root install -m 644 "$tmp" /etc/hosts
+        rm -f "$tmp"
+        ok "Eliminado de /etc/hosts local: $d"
+    fi
+
+    # Synchronize with Windows hosts ONLY when running on WSL
+    if is_wsl; then
+        win_hosts_del "$d"
+    fi
 }
 
 nginx_reload() {

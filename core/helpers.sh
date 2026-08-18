@@ -40,18 +40,14 @@ run() {
 
     if [ "${DRY_RUN:-0}" = "1" ]; then
         printf "${YELLOW}[dry-run]${RESET} "
-        [ "$use_sudo" = "1" ] && printf 'sudo '
+        [ "$use_sudo" = "1" ] && [ "$(id -u)" -ne 0 ] && printf 'sudo '
         printf '%s\n' "$*"
         return 0
     fi
 
-    if [ "$use_sudo" = "1" ]; then
-        if [ "$(id -u)" -eq 0 ]; then
-            "$@"
-        else
-            sudo -n true 2>/dev/null || sudo -v
-            sudo "$@"
-        fi
+    if [ "$use_sudo" = "1" ] && [ "$(id -u)" -ne 0 ]; then
+        sudo -n true 2>/dev/null || sudo -v
+        sudo "$@"
     else
         "$@"
     fi
@@ -59,6 +55,13 @@ run() {
 
 # Run command strictly as root (sudo or direct)
 run_root() {
+    if [ "${DRY_RUN:-0}" = "1" ]; then
+        printf "${YELLOW}[dry-run]${RESET} "
+        [ "$(id -u)" -ne 0 ] && printf 'sudo '
+        printf '%s\n' "$*"
+        return 0
+    fi
+
     if [ "$(id -u)" -eq 0 ]; then
         "$@"
     else
@@ -70,10 +73,13 @@ run_root() {
 SUDO_LOOP_PID=""
 ensure_sudo() {
     [ "${DRY_RUN:-0}" = "1" ] && return 0
-    [ "$(id -u)" -eq 0 ] && return 0
+    if [ "$(id -u)" -eq 0 ]; then
+        ok "Ejecutando como usuario root — omitiendo comprobación de sudo."
+        return 0
+    fi
 
     command -v sudo >/dev/null 2>&1 || {
-        fail "Este script requiere 'sudo' para configurar servicios y dependencias."
+        fail "Este script requiere 'sudo' para configurar servicios y dependencias (o ejecutar como root)."
         exit 1
     }
 
