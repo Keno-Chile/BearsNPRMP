@@ -180,3 +180,4 @@ El panel se actualiza automáticamente cada 15 segundos mostrando el estado de t
 ## 📜 Licencia
 
 Distribuido bajo la Licencia [MIT](LICENSE). Creado por [Keno-Chile](https://github.com/Keno-Chile).
+# cache refresh
