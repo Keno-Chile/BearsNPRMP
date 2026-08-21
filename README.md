@@ -174,6 +174,9 @@ El panel se actualiza automáticamente cada 15 segundos mostrando el estado de t
 # Ver qué se eliminaría (sin hacer cambios)
 ./uninstall.sh --dry-run
 ```
+---
+
+[![ko-fi](https://ko-fi.com/img/githubbutton_sm.svg)](https://ko-fi.com/X7L625HLNR)
 
 ---
 
